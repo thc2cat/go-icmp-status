@@ -21,10 +21,11 @@ var (
 	pinger         *ping.Pinger
 	targets        []string
 	isAlive        = make(map[string]bool)
+	displayed      = make(map[string]bool)
 
 	statusMsgs = map[bool]string{
 		false: "\033[31m%s not responding\033[0m\n",
-		true:  "\033[32m%s up again\033[0m\n",
+		true:  "\033[32m%s is alive\033[0m\n",
 	}
 )
 
@@ -95,9 +96,10 @@ func main() {
 
 					alive = false
 				}
-				if isAlive[targets[[]byte(i)[0]]] != alive {
+				if (!displayed[targets[[]byte(i)[0]]]) || (isAlive[targets[[]byte(i)[0]]] != alive) {
 					fmt.Printf(statusMsgs[alive], targets[[]byte(i)[0]])
 					isAlive[targets[[]byte(i)[0]]] = alive
+					displayed[targets[[]byte(i)[0]]] = true
 				}
 				// fmt.Printf("%s: %+v \n", targets[[]byte(i)[0]], metrics.PacketsSent-metrics.PacketsLost)
 			}
