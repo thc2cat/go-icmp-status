@@ -10,9 +10,10 @@ Very simple tool that keep sending icmp packet to a lot of hosts, and display fl
 
 * Build from go with  ``` go build ```
 
-* simple colored output ( red /green )
+* simple colored output ( red /green ) with timespamp
 
-```text
-host.domain not responding
-anotherhost.domain up again
-```
+---
+
+2021-11-10 15:55  <span style="color:red">host.domain not responding</span>  
+
+2021-11-10 15:55  <span style="color:green">anotherhost.domain is alive</span>

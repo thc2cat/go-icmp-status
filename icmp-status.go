@@ -19,13 +19,15 @@ var (
 	reportInterval      = 3 * time.Second
 	size           uint = 56
 	pinger         *ping.Pinger
-	targets        []string
-	isAlive        = make(map[string]bool)
-	displayed      = make(map[string]bool)
+	err            error
+
+	targets   []string
+	isAlive   = make(map[string]bool)
+	displayed = make(map[string]bool)
 
 	statusMsgs = map[bool]string{
-		false: "\033[31m%s not responding\033[0m\n",
-		true:  "\033[32m%s is alive\033[0m\n",
+		false: "%s \033[31m%s not responding\033[0m\n",
+		true:  "%s \033[32m%s is alive\033[0m\n",
 	}
 )
 
@@ -46,22 +48,19 @@ func main() {
 	flag.UintVar(&size, "size", size, "size of additional payload data")
 	flag.Parse()
 
-	if n := flag.NArg(); n == 0 {
-		// Targets empty?
+	if n := flag.NArg(); n == 0 { // Targets empty?
 		flag.Usage()
 		os.Exit(1)
-	} else if n > int(^byte(0)) {
-		// Too many targets?
+	} else if n > int(^byte(0)) { // Too many targets?
+
 		fmt.Println("Too many targets")
 		os.Exit(1)
 	}
 
 	// Bind to sockets
-	if p, err := ping.New("0.0.0.0", "::"); err != nil {
+	if pinger, err = ping.New("0.0.0.0", "::"); err != nil {
 		fmt.Printf("Unable to bind: %s\nRunning as root?\n", err)
 		os.Exit(2)
-	} else {
-		pinger = p
 	}
 	pinger.SetPayloadSize(uint16(size))
 	defer pinger.Close()
@@ -78,30 +77,28 @@ func main() {
 			fmt.Printf("invalid target '%s': %s", target, err)
 			continue
 		}
-		monitor.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr, 10*time.Millisecond*time.Duration(i))
+		monitor.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
+			10*time.Millisecond*time.Duration(i))
 		isAlive[target] = true
 	}
 
 	// Start report routine
 	ticker := time.NewTicker(reportInterval)
 	defer ticker.Stop()
+
 	go func() {
 		for range ticker.C {
 			for i, metrics := range monitor.ExportAndClear() {
-				// fmt.Printf("%s: %+v\n", targets[[]byte(i)[0]], *metrics)
-				alive := false
-				if metrics.PacketsSent-metrics.PacketsLost > 0 {
-					alive = true
-				} else {
 
-					alive = false
+				host := targets[[]byte(i)[0]]
+				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
+
+				if (!displayed[host]) || (isAlive[host] != alive) {
+					stamp := time.Now().Format("2006-02-01 15:04")
+					fmt.Printf(statusMsgs[alive], stamp, host)
+					isAlive[host], displayed[host] = alive, true
 				}
-				if (!displayed[targets[[]byte(i)[0]]]) || (isAlive[targets[[]byte(i)[0]]] != alive) {
-					fmt.Printf(statusMsgs[alive], targets[[]byte(i)[0]])
-					isAlive[targets[[]byte(i)[0]]] = alive
-					displayed[targets[[]byte(i)[0]]] = true
-				}
-				// fmt.Printf("%s: %+v \n", targets[[]byte(i)[0]], metrics.PacketsSent-metrics.PacketsLost)
+
 			}
 		}
 	}()
