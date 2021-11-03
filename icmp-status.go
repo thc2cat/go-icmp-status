@@ -2,6 +2,7 @@ package main
 
 // History :
 //  v0.2 : loosing packets message status, seconds in timestamps
+//  v0.3 using fathi/color
 
 import (
 	"flag"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/digineo/go-ping"
 	"github.com/digineo/go-ping/monitor"
+	"github.com/fatih/color"
 )
 
 var (
@@ -27,19 +29,9 @@ var (
 	targets   []string
 	isAlive   = make(map[string]bool)
 	displayed = make(map[string]bool)
-
-	statusMsgs = map[bool]string{
-		false: "%s \033[31m%s is down [%d/%d]\033[0m\n",
-		true:  "%s \033[32m%s is alive [%d/%d] \033[0m\n",
-	}
-	loosingPackets = "%s \033[33m%s is loosing packets [%d/%d]\033[0m\n"
 )
 
 func main() {
-
-	// colorReset := "\033[0m"
-	// colorRed := "\033[31m"
-	// colorGreen := "\033[32m"
 
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "[options] host [host [...]]")
@@ -99,17 +91,25 @@ func main() {
 
 				if (!displayed[host]) || (isAlive[host] != alive) {
 					stamp := time.Now().Format("2006-02-01 15:04:05")
-					var format string
-					switch {
-					case isAlive[host]:
-						format = statusMsgs[alive]
-					case metrics.PacketsLost != 0:
-						format = loosingPackets
-					default:
-						format = statusMsgs[alive]
-					}
 
-					fmt.Printf(format, stamp, host, metrics.PacketsLost, metrics.PacketsSent)
+					switch {
+
+					case alive && metrics.PacketsLost == 0:
+						fmt.Fprintf(color.Output, "%s %s", stamp,
+							color.GreenString(fmt.Sprintf("%s is up [%d/%d]\n",
+								host, metrics.PacketsSent-metrics.PacketsLost, metrics.PacketsSent)))
+
+					case alive && metrics.PacketsLost != 0:
+						fmt.Fprintf(color.Output, "%s %s", stamp,
+							color.YellowString(fmt.Sprintf("%s is up but loosing packets [%d/%d]\n",
+								host, metrics.PacketsSent-metrics.PacketsLost, metrics.PacketsSent)))
+
+					case !alive:
+						fmt.Fprintf(color.Output, "%s %s", stamp,
+							color.RedString(fmt.Sprintf("%s is down [%d/%d]\n",
+								host, metrics.PacketsSent-metrics.PacketsLost, metrics.PacketsSent)))
+
+					}
 
 					isAlive[host], displayed[host] = alive, true
 				}
