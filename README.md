@@ -4,7 +4,7 @@ Very simple tool that keep sending icmp packet to a lot of ipv4 or ipv6 hosts, a
 
 * Need root rights on linux for sendind icmp packets ( or sudo, or chown root `binary` , chmod u+s `binary` )
 
-* Dependencies github.com/digineo/go-ping + monitor
+* Dependencies [github.com/digineo/go-ping](github.com/digineo/go-ping) + monitor
 
 * Go build :  `go mod init ; go mod tidy ; go build` 
 
