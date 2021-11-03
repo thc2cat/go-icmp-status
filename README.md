@@ -1,18 +1,22 @@
-# Go icmp-status
+# go-icmp-status
 
-Very simple tool that keep sending icmp packet to a lot of hosts, and display flip/flap icmp status changes.
+Very simple tool that keep sending icmp packet to a lot of ipv4 or ipv6 hosts, and display flip/flap icmp status changes, and packet loss.
 
-* Need root on linux for icmp packets.
+* Need root rights on linux for sendind icmp packets ( or sudo, or chown root `binary` , chmod u+s `binary` )
 
-* Build with github.com/digineo/go-ping + monitor
+* Dependencies github.com/digineo/go-ping + monitor
 
-* Download dependencies with ``` go mod tidy ```
+* Go build :  `go mod init ; go mod tidy ; go build` 
 
-* Build from go with  ``` go build ```
-
-* simple colored output ( red/green/yellow ) with timestamp
+* Colored output ( red/green/yellow ) with timestamp
 
 ```diff
-- 2021-11-10 15:55 host.domain not responding
-+ 2021-11-10 15:55 anotherhost.domain is alive
+- 2021-11-10 15:55:55 host.domain not responding
++ 2021-11-10 15:55:56 anotherhost.domain is alive
+```
+
+* simple way of monitoring a list of hosts :
+
+```shell
+cat list | xargs go-icmp-status -pingInterval 30s
 ```
