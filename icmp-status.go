@@ -1,5 +1,8 @@
 package main
 
+// History :
+//  v0.2 : loosing packets message status, seconds in timestamps
+
 import (
 	"flag"
 	"fmt"
@@ -26,9 +29,10 @@ var (
 	displayed = make(map[string]bool)
 
 	statusMsgs = map[bool]string{
-		false: "%s \033[31m%s not responding\033[0m\n",
-		true:  "%s \033[32m%s is alive\033[0m\n",
+		false: "%s \033[31m%s is down [%d/%d]\033[0m\n",
+		true:  "%s \033[32m%s is alive [%d/%d] \033[0m\n",
 	}
+	loosingPackets = "%s \033[33m%s is loosing packets [%d/%d]\033[0m\n"
 )
 
 func main() {
@@ -94,11 +98,21 @@ func main() {
 				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
 
 				if (!displayed[host]) || (isAlive[host] != alive) {
-					stamp := time.Now().Format("2006-02-01 15:04")
-					fmt.Printf(statusMsgs[alive], stamp, host)
+					stamp := time.Now().Format("2006-02-01 15:04:05")
+					var format string
+					switch {
+					case isAlive[host]:
+						format = statusMsgs[alive]
+					case metrics.PacketsLost != 0:
+						format = loosingPackets
+					default:
+						format = statusMsgs[alive]
+					}
+
+					fmt.Printf(format, stamp, host, metrics.PacketsLost, metrics.PacketsSent)
+
 					isAlive[host], displayed[host] = alive, true
 				}
-
 			}
 		}
 	}()
