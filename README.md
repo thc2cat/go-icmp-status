@@ -2,6 +2,8 @@
 
 Very simple tool that keep sending icmp packet to a list of ipv4 or ipv6 hosts, and display flip/flap icmp status changes, and packet loss.
 
+Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.com/digineo/go-ping/tree/master/cmd/ping-monitor)
+
 * Need root rights on linux for sending icmp packets ( or sudo, or chown root `binary` , chmod u+s `binary` after build )
 
 * Dependencies [github.com/digineo/go-ping](https://github.com/digineo/go-ping) + monitor + fathi/color
