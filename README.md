@@ -6,8 +6,6 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 
 * Need root rights on linux for sending icmp packets ( or sudo, or chown root `binary` , chmod u+s `binary` after build )
 
-* Dependencies [github.com/digineo/go-ping](https://github.com/digineo/go-ping) + monitor + fathi/color
-
 * Go build
 
 ```shell
@@ -17,14 +15,18 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 > go build`
 ```
 
-* Colored output ( red/green/yellow ) with timestamp
-
 * fast way of monitoring a list of hosts :
 
 ```shell
-> cat fqdnhostslist.txt | xargs go-icmp-status -pingInterval 30s
+> cat hosts.txt | xargs go-icmp-status -pingInterval 30s
 ```
 
-* Exemple of continuous monitoring (after `mtr` check and text paste):
+* Colored output ( red/green/yellow ) with timestamp
+of continuous monitoring (after `mtr` check and text paste):
 
 ![ipv6 loss](ipv6-loss.png)
+
+* Green for a host receiving all packets
+* Red for a host loosing all packets
+* Yellow for a host up but loosing packets
+* [Received/Sent] indicate x received packet for y sent packets during interval.

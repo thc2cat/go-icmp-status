@@ -91,8 +91,9 @@ func main() {
 
 				host := targets[[]byte(i)[0]]
 				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
+				loosing := (metrics.PacketsSent - metrics.PacketsLost) != metrics.PacketsSent
 
-				if (!displayed[host]) || (isAlive[host] != alive) {
+				if (!displayed[host]) || (isAlive[host] != alive) || (alive && loosing) {
 					stamp := time.Now().Format("2006-02-01 15:04:05")
 
 					switch {
