@@ -1,8 +1,11 @@
 package main
 
+// adapted from :
+// https://github.com/digineo/go-ping/tree/master/cmd/ping-monitor
+
 // History :
 //  v0.2 : loosing packets message status, seconds in timestamps
-//  v0.3 using fathi/color
+//  v0.3 : using fathi/color
 
 import (
 	"flag"
