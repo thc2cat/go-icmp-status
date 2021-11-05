@@ -29,4 +29,4 @@ of continuous monitoring (after `mtr` check and text paste):
 * Green for a host receiving all packets during interval
 * Red for a host loosing all packets during interval
 * Yellow for a host up but loosing packets during interval, [Received/Sent/Percent] indicate x received packet for y sent packets during interval. Percent indicate percentage of received packets since command start.
-* -S option for packet loss summary after ^C.
+* -S option for ignoring packet loss summary after ^C.

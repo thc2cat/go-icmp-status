@@ -30,13 +30,13 @@ type Stats struct {
 }
 
 var (
-	pingInterval        = 1 * time.Second
-	pingTimeout         = 3 * time.Second
-	reportInterval      = 3 * time.Second
-	reportSummary       = false
-	size           uint = 56
-	pinger         *ping.Pinger
-	err            error
+	pingInterval         = 1 * time.Second
+	pingTimeout          = 3 * time.Second
+	reportInterval       = 3 * time.Second
+	noreportSummary      = false
+	size            uint = 56
+	pinger          *ping.Pinger
+	err             error
 
 	targets    []string
 	isAlive    = make(map[string]bool)
@@ -56,7 +56,7 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&reportSummary, "S", reportSummary, "report summary")
+	flag.BoolVar(&noreportSummary, "S", noreportSummary, "don't report summary")
 	flag.Parse()
 
 	if n := flag.NArg(); n == 0 { // Targets empty?
@@ -150,7 +150,7 @@ func main() {
 	// fmt.Println("received", <-ch)
 	<-ch
 
-	if reportSummary {
+	if !noreportSummary {
 		end := time.Now()
 		fmt.Printf("\ngo-icmp-status summary %s to %s:\n", start.Format(dateFormat), end.Format(dateFormat))
 		// Summary
