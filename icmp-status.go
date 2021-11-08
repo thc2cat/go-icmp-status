@@ -1,12 +1,13 @@
 package main
 
-// adapted from :
+// Original Source :
 // https://github.com/digineo/go-ping/tree/master/cmd/ping-monitor
 
 // History :
 //  v0.2 : loosing packets message status, seconds in timestamps
 //  v0.3 : using fathi/color
 //  v0.4 : packet loss summary
+//  v0.5 : add syslog reporting for long term survey
 //
 // Author of additional code : T.CAILLET.
 
@@ -34,6 +35,7 @@ var (
 	pingTimeout          = 3 * time.Second
 	reportInterval       = 3 * time.Second
 	noreportSummary      = false
+	logToSyslog          = false
 	size            uint = 56
 	pinger          *ping.Pinger
 	err             error
@@ -56,14 +58,14 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&noreportSummary, "S", noreportSummary, "don't report summary")
+	flag.BoolVar(&noreportSummary, "R", noreportSummary, "don't report summary")
+	flag.BoolVar(&logToSyslog, "s", !logToSyslog, "log events to syslog")
 	flag.Parse()
 
 	if n := flag.NArg(); n == 0 { // Targets empty?
 		flag.Usage()
 		os.Exit(1)
 	} else if n > int(^byte(0)) { // Too many targets?
-
 		fmt.Println("Too many targets")
 		os.Exit(1)
 	}
@@ -85,13 +87,12 @@ func main() {
 	for i, target := range targets {
 		ipAddr, err := net.ResolveIPAddr("", target)
 		if err != nil {
-			fmt.Printf("invalid target '%s': %s", target, err)
+			fmt.Printf("invalid target '%s': %s\n", target, err)
 			continue
 		}
 		monitor.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
 			10*time.Millisecond*time.Duration(i))
-		isAlive[target] = true
-
+		isAlive[target] = true // Considers hosts are alive.
 		hoststats[target] = new(Stats)
 	}
 
@@ -100,6 +101,9 @@ func main() {
 	defer ticker.Stop()
 
 	start := time.Now()
+	if logToSyslog {
+		configurelogger()
+	}
 
 	go func() {
 		for range ticker.C {
@@ -109,32 +113,39 @@ func main() {
 				hoststats[host].Received += metrics.PacketsSent - metrics.PacketsLost
 				hoststats[host].Sent += metrics.PacketsSent
 
-				// tmp := hoststats[host]
-				// tmp.Received +=
-				// tmp.Sent +=
-				// hoststats[host] = tmp
-
 				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
 				loosing := (metrics.PacketsSent - metrics.PacketsLost) != metrics.PacketsSent
 
 				if (!displayed[host]) || (isAlive[host] != alive) || (alive && loosing) {
 					stamp := time.Now().Format("2006-02-01 15:04:05")
-					percent := int(float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100)
+					percent := float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100
 					switch {
 
 					case alive && metrics.PacketsLost == 0:
-						fmt.Fprintf(color.Output, "%s %s", stamp,
-							color.GreenString(fmt.Sprintf("%s is up\n", host)))
+						msg := fmt.Sprintf("%s is up", host)
+						fmt.Fprintf(color.Output, "%s %s\n", stamp,
+							color.GreenString(msg))
+						if logToSyslog {
+							doLogPrintf(msg)
+						}
 
 					case alive && metrics.PacketsLost != 0:
-						fmt.Fprintf(color.Output, "%s %s", stamp,
-							color.YellowString(fmt.Sprintf("%s incomplete reply [%d/%d/%d%%]\n",
-								host, metrics.PacketsSent-metrics.PacketsLost, metrics.PacketsSent,
-								percent)))
+						msg := fmt.Sprintf("%s incomplete reply [%d/%d/%.1f%%]",
+							host, metrics.PacketsSent-metrics.PacketsLost,
+							metrics.PacketsSent, percent)
+						fmt.Fprintf(color.Output, "%s %s\n", stamp,
+							color.YellowString(msg))
+						if logToSyslog {
+							doLogPrintf(msg)
+						}
 
 					case !alive:
-						fmt.Fprintf(color.Output, "%s %s", stamp,
-							color.RedString(fmt.Sprintf("%s is down\n", host)))
+						msg := fmt.Sprintf("%s is down", host)
+						fmt.Fprintf(color.Output, "%s %s\n", stamp,
+							color.RedString(msg))
+						if logToSyslog {
+							doLogPrintf(msg)
+						}
 
 					}
 

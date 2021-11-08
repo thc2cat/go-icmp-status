@@ -21,12 +21,12 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 > cat hosts.txt | xargs go-icmp-status -pingInterval 30s
 ```
 
-* Colored output ( red/green/yellow ) with timestamp
-of continuous monitoring (after `mtr` check and text paste):
+* Colored output exemple
 
 ![ipv6 loss](ipv6-loss.png)
 
 * Green for a host receiving all packets during interval
 * Red for a host loosing all packets during interval
 * Yellow for a host up but loosing packets during interval, [Received/Sent/Percent] indicate x received packet for y sent packets during interval. Percent indicate percentage of received packets since command start.
-* -S option for ignoring packet loss summary after ^C.
+* -R option for ignoring packet loss summary after ^C.
+* -s for logging events to syslog (daemon.info facility)
