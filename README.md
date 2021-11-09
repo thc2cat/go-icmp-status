@@ -28,5 +28,6 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 * Green for a host receiving all packets during interval
 * Red for a host loosing all packets during interval
 * Yellow for a host up but loosing packets during interval, [Received/Sent/Percent] indicate x received packet for y sent packets during interval. Percent indicate percentage of received packets since command start.
-* -R option for ignoring packet loss summary after ^C.
-* -s for logging events to syslog (daemon.info facility)
+* -reportSummary option for packet loss report after ^C.
+* -logToSyslog for logging events to syslog (daemon.info facility)
+* -showIp display monitored ips

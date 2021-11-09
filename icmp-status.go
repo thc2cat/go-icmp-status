@@ -8,6 +8,7 @@ package main
 //  v0.3 : using fathi/color
 //  v0.4 : packet loss summary
 //  v0.5 : add syslog reporting for long term survey
+//  v0.6 : -I show resolved IPs, -t allow 1 packet loss tolerance
 //
 // Author of additional code : T.CAILLET.
 
@@ -31,14 +32,16 @@ type Stats struct {
 }
 
 var (
-	pingInterval         = 1 * time.Second
-	pingTimeout          = 3 * time.Second
-	reportInterval       = 3 * time.Second
-	noreportSummary      = false
-	logToSyslog          = false
-	size            uint = 56
-	pinger          *ping.Pinger
-	err             error
+	pingInterval        = 1 * time.Second
+	pingTimeout         = 3 * time.Second
+	reportInterval      = 3 * time.Second
+	reportSummary       = true
+	logToSyslog         = false
+	beTolerant          = false
+	showIp              = false
+	size           uint = 56
+	pinger         *ping.Pinger
+	err            error
 
 	targets    []string
 	isAlive    = make(map[string]bool)
@@ -58,8 +61,11 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&noreportSummary, "R", noreportSummary, "don't report summary")
-	flag.BoolVar(&logToSyslog, "s", !logToSyslog, "log events to syslog")
+	flag.BoolVar(&reportSummary, "reportSummary", !reportSummary, "report loss summary")
+	flag.BoolVar(&logToSyslog, "logToSyslog", !logToSyslog, "log events to syslog")
+	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
+	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
+
 	flag.Parse()
 
 	if n := flag.NArg(); n == 0 { // Targets empty?
@@ -78,9 +84,9 @@ func main() {
 	pinger.SetPayloadSize(uint16(size))
 	defer pinger.Close()
 
-	// Create monitor
-	monitor := monitor.New(pinger, pingInterval, pingTimeout)
-	defer monitor.Stop()
+	// Create checker
+	checker := monitor.New(pinger, pingInterval, pingTimeout)
+	defer checker.Stop()
 
 	// Add targets
 	targets = flag.Args()
@@ -90,7 +96,11 @@ func main() {
 			fmt.Printf("invalid target '%s': %s\n", target, err)
 			continue
 		}
-		monitor.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
+		if showIp {
+			fmt.Printf("ip adress monitored for host %s will be %s\n",
+				target, ipAddr.String())
+		}
+		checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
 			10*time.Millisecond*time.Duration(i))
 		isAlive[target] = true // Considers hosts are alive.
 		hoststats[target] = new(Stats)
@@ -107,7 +117,7 @@ func main() {
 
 	go func() {
 		for range ticker.C {
-			for i, metrics := range monitor.ExportAndClear() {
+			for i, metrics := range checker.ExportAndClear() {
 
 				host := targets[[]byte(i)[0]]
 				hoststats[host].Received += metrics.PacketsSent - metrics.PacketsLost
@@ -128,6 +138,9 @@ func main() {
 						if logToSyslog {
 							doLogPrintf(msg)
 						}
+
+					case alive && beTolerant && metrics.PacketsLost == 1:
+						// fmt.Fprintf(color.Output, "Ok, let's be tolerant for %s\n", host)
 
 					case alive && metrics.PacketsLost != 0:
 						msg := fmt.Sprintf("%s incomplete reply [%d/%d/%.1f%%]",
@@ -158,18 +171,18 @@ func main() {
 	// Handle SIGINT and SIGTERM.
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	// fmt.Println("received", <-ch)
+
 	<-ch
 
-	if !noreportSummary {
+	if reportSummary {
 		end := time.Now()
 		fmt.Printf("\ngo-icmp-status summary %s to %s:\n", start.Format(dateFormat), end.Format(dateFormat))
 		// Summary
 		for host := range hoststats {
 			if hoststats[host].Sent != 0 {
-				fmt.Printf("  received %3d/%3d packets %3d %% loss for %s\n",
+				fmt.Printf("  received %3d/%3d packets %3.1f %% loss for %s\n",
 					hoststats[host].Received, hoststats[host].Sent,
-					100-int(float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100),
+					100.-float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100,
 					host)
 			}
 		}
