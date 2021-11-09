@@ -31,3 +31,4 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 * -reportSummary option for packet loss report after ^C.
 * -logToSyslog for logging events to syslog (daemon.info facility)
 * -showIp display monitored ips
+* -t add a one packet loss tolerance
