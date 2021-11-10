@@ -32,3 +32,4 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 * -logToSyslog for logging events to syslog (daemon.info facility)
 * -showIp display monitored ips
 * -t add a one packet loss tolerance
+* -stopAfter delay for timed monitoring

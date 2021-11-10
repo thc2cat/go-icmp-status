@@ -9,6 +9,7 @@ package main
 //  v0.4 : packet loss summary
 //  v0.5 : add syslog reporting for long term survey
 //  v0.6 : -I show resolved IPs, -t allow 1 packet loss tolerance
+//  v0.7 : -stopAfter delay option for timed execution
 //
 // Author of additional code : T.CAILLET.
 
@@ -35,6 +36,7 @@ var (
 	pingInterval        = 1 * time.Second
 	pingTimeout         = 3 * time.Second
 	reportInterval      = 3 * time.Second
+	stopAfter           = 365 * 24 * time.Hour
 	reportSummary       = true
 	logToSyslog         = false
 	beTolerant          = false
@@ -65,6 +67,7 @@ func main() {
 	flag.BoolVar(&logToSyslog, "logToSyslog", !logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
+	flag.DurationVar(&stopAfter, "stopAfter", stopAfter, "stop monitoring after this interval")
 
 	flag.Parse()
 
@@ -140,7 +143,6 @@ func main() {
 						}
 
 					case alive && beTolerant && metrics.PacketsLost == 1:
-						// fmt.Fprintf(color.Output, "Ok, let's be tolerant for %s\n", host)
 
 					case alive && metrics.PacketsLost != 0:
 						msg := fmt.Sprintf("%s incomplete reply [%d/%d/%.1f%%]",
@@ -172,7 +174,10 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 
-	<-ch
+	select {
+	case <-ch:
+	case <-time.After(stopAfter):
+	}
 
 	if reportSummary {
 		end := time.Now()
