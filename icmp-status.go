@@ -37,7 +37,7 @@ var (
 	pingTimeout         = 3 * time.Second
 	reportInterval      = 3 * time.Second
 	stopAfter           = 365 * 24 * time.Hour
-	reportSummary       = true
+	reportSummary       = false
 	logToSyslog         = false
 	beTolerant          = false
 	showIp              = false
@@ -63,8 +63,8 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&reportSummary, "reportSummary", !reportSummary, "report loss summary")
-	flag.BoolVar(&logToSyslog, "logToSyslog", !logToSyslog, "log events to syslog")
+	flag.BoolVar(&reportSummary, "reportSummary", reportSummary, "report loss summary")
+	flag.BoolVar(&logToSyslog, "logToSyslog", logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
 	flag.DurationVar(&stopAfter, "stopAfter", stopAfter, "stop monitoring after this interval")

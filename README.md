@@ -12,7 +12,7 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 > git clone https://github.com/thc2cat/go-icmp-status 
 > cd go-icmp-status 
 > go mod tidy 
-> go build`
+> go build
 ```
 
 * fast way of monitoring a list of hosts :
