@@ -10,6 +10,7 @@ package main
 //  v0.5 : add syslog reporting for long term survey
 //  v0.6 : -I show resolved IPs, -t allow 1 packet loss tolerance
 //  v0.7 : -stopAfter delay option for timed execution
+//  v0.8 : moved defered stops before reports
 //
 // Author of additional code : T.CAILLET.
 
@@ -85,11 +86,11 @@ func main() {
 		os.Exit(2)
 	}
 	pinger.SetPayloadSize(uint16(size))
-	defer pinger.Close()
+	// defer pinger.Close()
 
 	// Create checker
 	checker := monitor.New(pinger, pingInterval, pingTimeout)
-	defer checker.Stop()
+	// defer checker.Stop()
 
 	// Add targets
 	targets = flag.Args()
@@ -111,7 +112,7 @@ func main() {
 
 	// Start report routine
 	ticker := time.NewTicker(reportInterval)
-	defer ticker.Stop()
+	// defer ticker.Stop()
 
 	start := time.Now()
 	if logToSyslog {
@@ -179,9 +180,14 @@ func main() {
 	case <-time.After(stopAfter):
 	}
 
+	ticker.Stop()
+	checker.Stop()
+	pinger.Close()
+
 	if reportSummary {
 		end := time.Now()
-		fmt.Printf("\ngo-icmp-status summary %s to %s:\n", start.Format(dateFormat), end.Format(dateFormat))
+		fmt.Printf("\ngo-icmp-status summary %s to %s:\n",
+			start.Format(dateFormat), end.Format(dateFormat))
 		// Summary
 		for host := range hoststats {
 			if hoststats[host].Sent != 0 {
