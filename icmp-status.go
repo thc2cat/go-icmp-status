@@ -36,9 +36,9 @@ type Stats struct {
 var (
 	pingInterval        = 1 * time.Second
 	pingTimeout         = 3 * time.Second
-	reportInterval      = 3 * time.Second
+	reportInterval      = 5 * time.Second
 	stopAfter           = 365 * 24 * time.Hour
-	reportSummary       = false
+	reportLoss          = false
 	logToSyslog         = false
 	beTolerant          = false
 	showIp              = false
@@ -64,7 +64,7 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&reportSummary, "reportSummary", reportSummary, "report loss summary")
+	flag.BoolVar(&reportLoss, "reportLoss", reportLoss, "report loss summary")
 	flag.BoolVar(&logToSyslog, "logToSyslog", logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
@@ -75,8 +75,8 @@ func main() {
 	if n := flag.NArg(); n == 0 { // Targets empty?
 		flag.Usage()
 		os.Exit(1)
-	} else if n > int(^byte(0)) { // Too many targets?
-		fmt.Println("Too many targets")
+	} else if n > 1024 { // Too much icmp may be problematic for some OS
+		fmt.Printf("Too many targets : %d > 1024 max\n", n)
 		os.Exit(1)
 	}
 
@@ -184,17 +184,24 @@ func main() {
 	checker.Stop()
 	pinger.Close()
 
-	if reportSummary {
+	if reportLoss {
 		end := time.Now()
 		fmt.Printf("\ngo-icmp-status summary %s to %s:\n",
 			start.Format(dateFormat), end.Format(dateFormat))
 		// Summary
 		for host := range hoststats {
-			if hoststats[host].Sent != 0 {
-				fmt.Printf("  received %3d/%3d packets %3.1f %% loss for %s\n",
-					hoststats[host].Received, hoststats[host].Sent,
-					100.-float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100,
-					host)
+			if hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
+				num := 100. - float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100
+				msg := fmt.Sprintf("  received %3d/%3d packets %3.1f %% loss for %s\n",
+					hoststats[host].Received, hoststats[host].Sent, num, host)
+				switch {
+				case num > 5.:
+					fmt.Fprintf(color.Output, "%s", color.RedString(msg))
+				case num > 0.1:
+					fmt.Fprintf(color.Output, "%s", color.YellowString(msg))
+				default:
+					fmt.Fprintf(color.Output, "%s", msg)
+				}
 			}
 		}
 	}
