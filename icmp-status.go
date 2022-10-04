@@ -12,7 +12,7 @@ package main
 //  v0.7 : -stopAfter delay option for timed execution
 //  v0.8 : moved defered stops before reports
 //
-// Author of additional code : T.CAILLET.
+// Author of additional code : thc2cat@gmail.com
 
 import (
 	"flag"
@@ -101,8 +101,23 @@ func main() {
 			continue
 		}
 		if showIp {
-			fmt.Printf("ip adress monitored for host %s will be %s\n",
-				target, ipAddr.String())
+
+			names, errLookupAddr := net.LookupAddr(target)
+			if errLookupAddr == nil {
+				fmt.Printf("Sending to [%s] %s\n",
+					target, names[0])
+
+			} else {
+				addr, errLookupIP := net.LookupIP(target)
+				if errLookupIP == nil {
+					fmt.Printf("Sending to %s [%s]\n", target,
+						addr[0])
+				} else {
+					fmt.Printf("Errors resolving %s", target)
+				}
+
+			}
+
 		}
 		checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
 			10*time.Millisecond*time.Duration(i))
@@ -131,7 +146,7 @@ func main() {
 				loosing := (metrics.PacketsSent - metrics.PacketsLost) != metrics.PacketsSent
 
 				if (!displayed[host]) || (isAlive[host] != alive) || (alive && loosing) {
-					stamp := time.Now().Format("2006-02-01 15:04:05")
+					stamp := time.Now().Format("2006-01-02 15:04:05")
 					percent := float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100
 					switch {
 
