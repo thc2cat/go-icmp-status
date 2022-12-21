@@ -11,6 +11,7 @@ package main
 //  v0.6 : -I show resolved IPs, -t allow 1 packet loss tolerance
 //  v0.7 : -stopAfter delay option for timed execution
 //  v0.8 : moved defered stops before reports
+//  v0.9 : read targets from file
 //
 // Author of additional code : thc2cat@gmail.com
 
@@ -20,6 +21,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,17 +36,19 @@ type Stats struct {
 }
 
 var (
-	pingInterval        = 1 * time.Second
-	pingTimeout         = 3 * time.Second
-	reportInterval      = 5 * time.Second
-	stopAfter           = 365 * 24 * time.Hour
-	reportLoss          = false
-	logToSyslog         = false
-	beTolerant          = false
-	showIp              = false
-	size           uint = 56
-	pinger         *ping.Pinger
-	err            error
+	pingInterval   = 1 * time.Second
+	pingTimeout    = 3 * time.Second
+	reportInterval = 5 * time.Second
+	stopAfter      = 365 * 24 * time.Hour
+	reportLoss     = false
+	logToSyslog    = false
+	beTolerant     = false
+	showIp         = false
+	File           string
+
+	size   uint = 56
+	pinger *ping.Pinger
+	err    error
 
 	targets    []string
 	isAlive    = make(map[string]bool)
@@ -56,7 +60,7 @@ var (
 func main() {
 
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "[options] host [host [...]]")
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "[options] [hosts...]")
 		flag.PrintDefaults()
 	}
 
@@ -68,6 +72,7 @@ func main() {
 	flag.BoolVar(&logToSyslog, "logToSyslog", logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
+	flag.StringVar(&File, "file", File, "read hosts from file")
 	flag.DurationVar(&stopAfter, "stopAfter", stopAfter, "stop monitoring after this interval")
 
 	flag.Parse()
@@ -93,7 +98,12 @@ func main() {
 	// defer checker.Stop()
 
 	// Add targets
-	targets = flag.Args()
+	if len(File) != 0 {
+		targets = readHosts(File)
+	} else {
+		targets = flag.Args()
+	}
+
 	for i, target := range targets {
 		ipAddr, err := net.ResolveIPAddr("", target)
 		if err != nil {
@@ -221,4 +231,14 @@ func main() {
 		}
 	}
 
+}
+
+func readHosts(File string) []string {
+
+	content, err := os.ReadFile(File)
+	if err != nil {
+		fmt.Printf("REadFile error : %v", err)
+	}
+	lines := strings.Split(string(content), "\n")
+	return lines
 }
