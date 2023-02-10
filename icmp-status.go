@@ -12,15 +12,18 @@ package main
 //  v0.7 : -stopAfter delay option for timed execution
 //  v0.8 : moved defered stops before reports
 //  v0.9 : read targets from file
+// v0.10 : gosec, dateFormat, noLoss printed if ok
 //
 // Author of additional code : thc2cat@gmail.com
 
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -40,7 +43,7 @@ var (
 	pingTimeout    = 3 * time.Second
 	reportInterval = 5 * time.Second
 	stopAfter      = 365 * 24 * time.Hour
-	reportLoss     = false
+	noLossReport   = false
 	logToSyslog    = false
 	beTolerant     = false
 	showIp         = false
@@ -68,16 +71,17 @@ func main() {
 	flag.DurationVar(&pingTimeout, "pingTimeout", pingTimeout, "timeout for ICMP echo request")
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
-	flag.BoolVar(&reportLoss, "reportLoss", reportLoss, "report loss summary")
+	flag.BoolVar(&noLossReport, "noLossReport", noLossReport, "do not report loss summary")
 	flag.BoolVar(&logToSyslog, "logToSyslog", logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored ips resolution")
-	flag.StringVar(&File, "file", File, "read hosts from file")
+	flag.StringVar(&File, "r", File, "read hosts from file")
 	flag.DurationVar(&stopAfter, "stopAfter", stopAfter, "stop monitoring after this interval")
+	flag.StringVar(&dateFormat, "dateFormat", dateFormat, "log date format")
 
 	flag.Parse()
 
-	if n := flag.NArg(); n == 0 { // Targets empty?
+	if n := flag.NArg(); n == 0 && len(File) == 0 { // Targets empty?
 		flag.Usage()
 		os.Exit(1)
 	} else if n > 1024 { // Too much icmp may be problematic for some OS
@@ -100,11 +104,15 @@ func main() {
 	// Add targets
 	if len(File) != 0 {
 		targets = readHosts(File)
+		// fmt.Printf("After readHost , tagets = %v\n", targets)
 	} else {
 		targets = flag.Args()
 	}
 
 	for i, target := range targets {
+		if len(target) == 0 { // When reading ^$
+			continue
+		}
 		ipAddr, err := net.ResolveIPAddr("", target)
 		if err != nil {
 			fmt.Printf("invalid target '%s': %s\n", target, err)
@@ -129,8 +137,11 @@ func main() {
 			}
 
 		}
-		checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
+		erradd := checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
 			10*time.Millisecond*time.Duration(i))
+		if erradd != nil {
+			log.Print(err)
+		}
 		isAlive[target] = true // Considers hosts are alive.
 		hoststats[target] = new(Stats)
 	}
@@ -144,6 +155,7 @@ func main() {
 		configurelogger()
 	}
 
+	atLeastOnePacketLoss := false
 	go func() {
 		for range ticker.C {
 			for i, metrics := range checker.ExportAndClear() {
@@ -154,9 +166,12 @@ func main() {
 
 				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
 				loosing := (metrics.PacketsSent - metrics.PacketsLost) != metrics.PacketsSent
+				if loosing && !atLeastOnePacketLoss {
+					atLeastOnePacketLoss = true
+				}
 
 				if (!displayed[host]) || (isAlive[host] != alive) || (alive && loosing) {
-					stamp := time.Now().Format("2006-01-02 15:04:05")
+					stamp := time.Now().Format(dateFormat)
 					percent := float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100
 					switch {
 
@@ -209,9 +224,9 @@ func main() {
 	checker.Stop()
 	pinger.Close()
 
-	if reportLoss {
+	if !noLossReport && atLeastOnePacketLoss {
 		end := time.Now()
-		fmt.Printf("\ngo-icmp-status summary %s to %s:\n",
+		fmt.Printf("\nICMP summary from %s to %s:\n",
 			start.Format(dateFormat), end.Format(dateFormat))
 		// Summary
 		for host := range hoststats {
@@ -234,11 +249,9 @@ func main() {
 }
 
 func readHosts(File string) []string {
-
-	content, err := os.ReadFile(File)
+	content, err := os.ReadFile(filepath.Clean(File))
 	if err != nil {
-		fmt.Printf("REadFile error : %v", err)
+		log.Fatal(err)
 	}
-	lines := strings.Split(string(content), "\n")
-	return lines
+	return strings.Split(string(content), "\n")
 }

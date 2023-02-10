@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log/syslog"
 )
 
@@ -14,11 +15,17 @@ var (
 func configurelogger() {
 	if logToSyslog {
 		logger, err = syslog.New(syslog.LOG_DAEMON|syslog.LOG_INFO, "go-icmp-status")
+		if err != nil {
+			fmt.Print(err)
+		}
 	}
 }
 
 func doLogPrintf(format string, v ...interface{}) {
 	if logToSyslog {
-		logger.Info(format)
+		errl := logger.Info(format)
+		if errl != nil {
+			fmt.Print(errl)
+		}
 	}
 }
