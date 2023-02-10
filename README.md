@@ -15,21 +15,44 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 > go build
 ```
 
-* fast way of monitoring a list of hosts :
+* Options
 
 ```shell
-> cat hosts.txt | xargs go-icmp-status -pingInterval 30s
+v0.10 $ ./go-icmp-status.exe -h 
+Usage: C:\dev\src\projects\go-icmp-status\go-icmp-status.exe [options] [hosts...]
+  -dateFormat string
+        log date format (default "2006-01-02 15:04:05")
+  -logToSyslog
+        log events to syslog
+  -noLossReport
+        do not report loss summary
+  -pingInterval duration
+        interval for ICMP echo requests (default 1s)
+  -pingTimeout duration
+        timeout for ICMP echo request (default 3s)
+  -r string
+        read hosts from file
+  -reportInterval duration
+        interval for reports (default 5s)
+  -showIp
+        show monitored ips resolution
+  -size uint
+        size of additional payload data (default 56)
+  -stopAfter duration
+        stop monitoring after this interval (default 8760h0m0s)
+  -t    be tolerant, allow 1 packet loss per check
 ```
 
-* Colored output exemple
+* monitoring a list of hosts from a file :
+
+```shell
+go-icmp-status -pingInterval 5s -r hosts.txt
+```
+
+* Colored output exemple (v7) with multiple names in cli
 
 ![ipv6 loss](ipv6-loss.png)
 
 * Green for a host receiving all packets during interval
 * Red for a host loosing all packets during interval
-* Yellow for a host up but loosing packets during interval, [Received/Sent/Percent] indicate x received packet for y sent packets during interval. Percent indicate percentage of received packets since command start.
-* -reportSummary option for packet loss report after ^C.
-* -logToSyslog for logging events to syslog (daemon.info facility)
-* -showIp display monitored ips
-* -t add a one packet loss tolerance
-* -stopAfter delay for timed monitoring
+* Yellow for a host up but loosing packets during interval, [Received/Sent/Percent] indicate x received packet for y sent packets during interval. Percent indicate percentage of received packets since start.
