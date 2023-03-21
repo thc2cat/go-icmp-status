@@ -13,6 +13,7 @@ package main
 //  v0.8 : moved defered stops before reports
 //  v0.9 : read targets from file
 // v0.10 : gosec, dateFormat, noLoss printed if ok
+// v0.11 : \x07 sound on down and packet loss
 //
 // Author of additional code : thc2cat@gmail.com
 
@@ -170,7 +171,7 @@ func main() {
 					atLeastOnePacketLoss = true
 				}
 
-				if (!displayed[host]) || (isAlive[host] != alive) || (alive && loosing) {
+				if !displayed[host] || (isAlive[host] != alive) || (alive && loosing) {
 					stamp := time.Now().Format(dateFormat)
 					percent := float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100
 					switch {
@@ -184,9 +185,10 @@ func main() {
 						}
 
 					case alive && beTolerant && metrics.PacketsLost == 1:
+						// We do nothing.
 
 					case alive && metrics.PacketsLost != 0:
-						msg := fmt.Sprintf("%s incomplete reply [%d/%d/%.1f%%]",
+						msg := fmt.Sprintf("%s incomplete reply [%d/%d/%.1f%%] \x07",
 							host, metrics.PacketsSent-metrics.PacketsLost,
 							metrics.PacketsSent, percent)
 						fmt.Fprintf(color.Output, "%s %s\n", stamp,
@@ -196,7 +198,7 @@ func main() {
 						}
 
 					case !alive:
-						msg := fmt.Sprintf("%s is down", host)
+						msg := fmt.Sprintf("%s is down \x07", host)
 						fmt.Fprintf(color.Output, "%s %s\n", stamp,
 							color.RedString(msg))
 						if logToSyslog {
@@ -248,8 +250,8 @@ func main() {
 
 }
 
-func readHosts(File string) []string {
-	content, err := os.ReadFile(filepath.Clean(File))
+func readHosts(filename string) []string {
+	content, err := os.ReadFile(filepath.Clean(filename))
 	if err != nil {
 		log.Fatal(err)
 	}

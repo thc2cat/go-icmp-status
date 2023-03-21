@@ -18,29 +18,30 @@ Original code from [github.com/digineo/go-ping/cmd/ping-monitor](https://github.
 * Options
 
 ```shell
-v0.10 $ ./go-icmp-status.exe -h 
+v0.11 $ ./go-icmp-status.exe 
 Usage: C:\dev\src\projects\go-icmp-status\go-icmp-status.exe [options] [hosts...]
   -dateFormat string
         log date format (default "2006-01-02 15:04:05")
   -logToSyslog
         log events to syslog
   -noLossReport
-        do not report loss summary
+        do not report summary
   -pingInterval duration
         interval for ICMP echo requests (default 1s)
   -pingTimeout duration
         timeout for ICMP echo request (default 3s)
   -r string
-        read hosts from file
+        read targets from file
   -reportInterval duration
         interval for reports (default 5s)
   -showIp
-        show monitored ips resolution
+        show monitored targets name resolution
   -size uint
         size of additional payload data (default 56)
   -stopAfter duration
-        stop monitoring after this interval (default 8760h0m0s)
+        test duration (example 10m) (default 8760h0m0s)
   -t    be tolerant, allow 1 packet loss per check
+
 ```
 
 * monitoring a list of hosts from a file :
