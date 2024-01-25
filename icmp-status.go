@@ -14,6 +14,7 @@ package main
 //  v0.9 : read targets from file
 // v0.10 : gosec, dateFormat, noLoss printed if ok
 // v0.11 : \x07 sound on down and packet loss
+// v0.12 : ignoreNoLoss option
 //
 // Author of additional code : thc2cat@gmail.com
 
@@ -26,6 +27,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -45,6 +47,7 @@ var (
 	reportInterval = 5 * time.Second
 	stopAfter      = 365 * 24 * time.Hour
 	noLossReport   = false
+	ignoreNoLoss   = true
 	logToSyslog    = false
 	beTolerant     = false
 	showIp         = false
@@ -59,6 +62,8 @@ var (
 	displayed  = make(map[string]bool)
 	hoststats  = make(map[string]*Stats)
 	dateFormat = "2006-01-02 15:04:05"
+
+	mu sync.Mutex
 )
 
 func main() {
@@ -73,6 +78,7 @@ func main() {
 	flag.DurationVar(&reportInterval, "reportInterval", reportInterval, "interval for reports")
 	flag.UintVar(&size, "size", size, "size of additional payload data")
 	flag.BoolVar(&noLossReport, "noLossReport", noLossReport, "do not report summary")
+	flag.BoolVar(&ignoreNoLoss, "ignoreNoLoss", ignoreNoLoss, "do not report hosts without loss")
 	flag.BoolVar(&logToSyslog, "logToSyslog", logToSyslog, "log events to syslog")
 	flag.BoolVar(&beTolerant, "t", beTolerant, "be tolerant, allow 1 packet loss per check")
 	flag.BoolVar(&showIp, "showIp", showIp, "show monitored targets name resolution")
@@ -138,10 +144,12 @@ func main() {
 			}
 
 		}
-		erradd := checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
-			10*time.Millisecond*time.Duration(i))
-		if erradd != nil {
-			log.Print(err)
+		if ipAddr != nil {
+			erradd := checker.AddTargetDelayed(string([]byte{byte(i)}), *ipAddr,
+				10*time.Millisecond*time.Duration(i))
+			if erradd != nil {
+				log.Print(err)
+			}
 		}
 		isAlive[target] = true // Considers hosts are alive.
 		hoststats[target] = new(Stats)
@@ -162,8 +170,10 @@ func main() {
 			for i, metrics := range checker.ExportAndClear() {
 
 				host := targets[[]byte(i)[0]]
+				mu.Lock()
 				hoststats[host].Received += metrics.PacketsSent - metrics.PacketsLost
 				hoststats[host].Sent += metrics.PacketsSent
+				mu.Unlock()
 
 				alive := (metrics.PacketsSent - metrics.PacketsLost) > 0
 				loosing := (metrics.PacketsSent - metrics.PacketsLost) != metrics.PacketsSent
@@ -173,7 +183,9 @@ func main() {
 
 				if !displayed[host] || (isAlive[host] != alive) || (alive && loosing) {
 					stamp := time.Now().Format(dateFormat)
+					mu.Lock()
 					percent := float32(hoststats[host].Received) / float32(hoststats[host].Sent) * 100
+					mu.Unlock()
 					switch {
 
 					case alive && metrics.PacketsLost == 0:
@@ -226,16 +238,29 @@ func main() {
 	checker.Stop()
 	pinger.Close()
 
-	if !noLossReport && atLeastOnePacketLoss {
+	// if !noLossReport && atLeastOnePacketLoss {
+
+	if !noLossReport {
 		end := time.Now()
+		mu.Lock()
 		fmt.Printf("\nICMP summary from %s to %s:\n",
 			start.Format(dateFormat), end.Format(dateFormat))
+		if !atLeastOnePacketLoss {
+			fmt.Printf("\t\t--- No loss ---\n")
+
+		}
+		mu.Unlock()
+
 		// Summary
 		for host := range hoststats {
-			if hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
+			mu.Lock()
+			if ignoreNoLoss && hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
+				// if hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
 				num := 100. - float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100
+
 				msg := fmt.Sprintf("  received %3d/%3d packets %3.1f %% loss for %s\n",
 					hoststats[host].Received, hoststats[host].Sent, num, host)
+
 				switch {
 				case num > 5.:
 					fmt.Fprintf(color.Output, "%s", color.RedString(msg))
@@ -245,6 +270,7 @@ func main() {
 					fmt.Fprintf(color.Output, "%s", msg)
 				}
 			}
+			mu.Unlock()
 		}
 	}
 
