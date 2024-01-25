@@ -246,7 +246,7 @@ func main() {
 		fmt.Printf("\nICMP summary from %s to %s:\n",
 			start.Format(dateFormat), end.Format(dateFormat))
 		if !atLeastOnePacketLoss {
-			fmt.Printf("\t\t--- No loss ---\n")
+			fmt.Printf("\t\t\t--- No loss ---\n")
 
 		}
 		mu.Unlock()
@@ -254,7 +254,7 @@ func main() {
 		// Summary
 		for host := range hoststats {
 			mu.Lock()
-			if ignoreNoLoss && hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
+			if (hoststats[host].Sent != 0) && ((hoststats[host].Sent-hoststats[host].Received != 0) || !ignoreNoLoss) {
 				// if hoststats[host].Sent != 0 && (hoststats[host].Sent-hoststats[host].Received != 0) {
 				num := 100. - float32(hoststats[host].Received)/float32(hoststats[host].Sent)*100
 
