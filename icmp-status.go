@@ -15,6 +15,7 @@ package main
 // v0.10 : gosec, dateFormat, noLoss printed if ok
 // v0.11 : \x07 sound on down and packet loss
 // v0.12 : ignoreNoLoss option
+// v0.12.1 :  logic errors.
 //
 // Author of additional code : thc2cat@gmail.com
 
